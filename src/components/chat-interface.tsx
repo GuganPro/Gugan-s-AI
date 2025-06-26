@@ -15,9 +15,11 @@ import {
   Paperclip,
   LogIn,
   LogOut,
+  BrainCircuit,
 } from 'lucide-react';
 import { provideTechGuidance } from '@/ai/flows/provide-tech-guidance';
 import { offerPersonalSupport } from '@/ai/flows/offer-personal-support';
+import { explainConcept } from '@/ai/flows/explain-ai-flow';
 import { type Message } from '@/lib/types';
 import { ChatMessage } from '@/components/chat-message';
 import { useToast } from '@/hooks/use-toast';
@@ -40,7 +42,7 @@ import {
 } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-type SupportTopic = 'tech' | 'career' | 'college' | 'personal growth';
+type SupportTopic = 'tech' | 'career' | 'college' | 'personal growth' | 'explain';
 
 export default function ChatInterface() {
   const { toast } = useToast();
@@ -49,7 +51,7 @@ export default function ChatInterface() {
       id: '1',
       role: 'assistant',
       content:
-        'Dei Gugan! Naan un AI Macha. Enna venum, kelu macha! Tech doubt ah, personal advice ah? Just type pannu 💪',
+        'Dei Gugan! Naan un AI Macha. Enna venum, kelu macha! Tech doubt ah, personal advice ah, or just want me to explain something? Select a topic and just type pannu 💪',
       createdAt: new Date(),
     },
   ]);
@@ -204,6 +206,9 @@ export default function ChatInterface() {
       if (topic === 'tech') {
         const response = await provideTechGuidance({ query: input });
         responseContent = response.response;
+      } else if (topic === 'explain') {
+        const response = await explainConcept({ query: input });
+        responseContent = response.explanation;
       } else {
         const response = await offerPersonalSupport({ topic, userBackground: input });
         responseContent = response.advice;
@@ -272,7 +277,7 @@ export default function ChatInterface() {
       <main className="flex-1 flex flex-col min-h-0">
         <div className="p-4 border-b">
           <Tabs value={topic} onValueChange={(value) => setTopic(value as SupportTopic)}>
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-full">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-full">
               <TabsTrigger value="tech" className="flex-col sm:flex-row gap-2 h-12">
                 <Code2 className="h-5 w-5" /> Tech
               </TabsTrigger>
@@ -284,6 +289,9 @@ export default function ChatInterface() {
               </TabsTrigger>
               <TabsTrigger value="personal growth" className="flex-col sm:flex-row gap-2 h-12">
                 <Heart className="h-5 w-5" /> Personal
+              </TabsTrigger>
+              <TabsTrigger value="explain" className="flex-col sm:flex-row gap-2 h-12">
+                <BrainCircuit className="h-5 w-5" /> Explain
               </TabsTrigger>
             </TabsList>
           </Tabs>
