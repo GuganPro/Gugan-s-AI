@@ -193,7 +193,7 @@ export default function ChatInterface() {
     <div className="flex flex-col h-screen w-full max-w-4xl mx-auto bg-card shadow-2xl rounded-lg">
       <header className="flex items-center justify-between p-4 border-b shrink-0">
         <div className="flex items-center gap-3">
-          <BotIcon className="w-8 h-8 text-primary" />
+          <BotIcon className="text-3xl text-primary" />
           <h1 className="text-xl font-bold font-headline">Gugan's AI 💖</h1>
         </div>
         <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme">
