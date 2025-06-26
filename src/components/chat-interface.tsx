@@ -14,6 +14,8 @@ import {
   SendHorizontal,
   Paperclip,
   BrainCircuit,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { provideTechGuidance } from '@/ai/flows/provide-tech-guidance';
 import { offerPersonalSupport } from '@/ai/flows/offer-personal-support';
@@ -27,6 +29,7 @@ import { storage } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 type SupportTopic = 'tech' | 'career' | 'college' | 'personal growth' | 'explain';
+type Theme = 'light' | 'dark';
 
 export default function ChatInterface() {
   const { toast } = useToast();
@@ -43,9 +46,19 @@ export default function ChatInterface() {
   const [topic, setTopic] = useState<SupportTopic>('tech');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId] = useState(() => Math.random().toString(36).substring(2));
+  const [theme, setTheme] = useState<Theme>('dark');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(theme === 'light' ? 'dark' : 'light');
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -181,8 +194,13 @@ export default function ChatInterface() {
       <header className="flex items-center justify-between p-4 border-b shrink-0">
         <div className="flex items-center gap-3">
           <Bot className="w-8 h-8 text-primary" />
-          <h1 className="text-xl font-bold font-headline">Gugan's AI Macha</h1>
+          <h1 className="text-xl font-bold font-headline">Gugan's AI 💖</h1>
         </div>
+        <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme">
+          <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+          <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+          <span className="sr-only">Toggle theme</span>
+        </Button>
       </header>
       <main className="flex-1 flex flex-col min-h-0">
         <div className="p-4 border-b">
