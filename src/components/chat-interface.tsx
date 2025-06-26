@@ -13,8 +13,6 @@ import {
   Heart,
   SendHorizontal,
   Paperclip,
-  LogIn,
-  LogOut,
   BrainCircuit,
 } from 'lucide-react';
 import { provideTechGuidance } from '@/ai/flows/provide-tech-guidance';
@@ -23,23 +21,9 @@ import { explainConcept } from '@/ai/flows/explain-ai-flow';
 import { type Message } from '@/lib/types';
 import { ChatMessage } from '@/components/chat-message';
 import { useToast } from '@/hooks/use-toast';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 // Firebase imports
-import { auth, storage } from '@/lib/firebase';
-import {
-  GoogleAuthProvider,
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut,
-  type User,
-} from 'firebase/auth';
+import { storage } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 type SupportTopic = 'tech' | 'career' | 'college' | 'personal growth' | 'explain';
@@ -58,46 +42,10 @@ export default function ChatInterface() {
   const [input, setInput] = useState('');
   const [topic, setTopic] = useState<SupportTopic>('tech');
   const [isLoading, setIsLoading] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [sessionId] = useState(() => Math.random().toString(36).substring(2));
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const handleLogin = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-      toast({ title: 'Super!', description: 'Ulla vandhutinga, macha!' });
-    } catch (error) {
-      console.error('Login failed:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Aiyayo! Login aagala.',
-        description: 'Ennamo thappu nadandhurukku. Again try pannu.',
-      });
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      toast({ title: 'Tata, bye bye!', description: 'See you again, macha!' });
-    } catch (error) {
-      console.error('Logout failed:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Oh no! Logout aagala.',
-        description: 'Problem irukku, konjam neram kalichi try pannu.',
-      });
-    }
-  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -125,10 +73,6 @@ export default function ChatInterface() {
       return;
     }
     const file = e.target.files[0];
-    if (!user) {
-      toast({ variant: "destructive", title: "Macha, first login pannu!" });
-      return;
-    }
     if (!file.type.startsWith('image/')) {
       toast({ variant: "destructive", title: "Dei, image mattum anupu da!" });
       return;
@@ -141,7 +85,7 @@ export default function ChatInterface() {
     ]);
 
     try {
-      const storageRef = ref(storage, `uploads/${user.uid}/${Date.now()}-${file.name}`);
+      const storageRef = ref(storage, `uploads/${sessionId}/${Date.now()}-${file.name}`);
       const snapshot = await uploadBytes(storageRef, file);
       const downloadURL = await getDownloadURL(snapshot.ref);
 
@@ -173,15 +117,6 @@ export default function ChatInterface() {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
     
-    if (!user) {
-      toast({
-        variant: "destructive",
-        title: "Login Pannu Macha!",
-        description: "Message anupa munnadi, login pannu da.",
-      });
-      return;
-    }
-
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -248,31 +183,6 @@ export default function ChatInterface() {
           <Bot className="w-8 h-8 text-primary" />
           <h1 className="text-xl font-bold font-headline">Gugan's AI Macha</h1>
         </div>
-        <div>
-          {user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? 'User'} />
-                    <AvatarFallback>{user.displayName?.charAt(0) ?? 'U'}</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuItem onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Button onClick={handleLogin}>
-              <LogIn className="mr-2 h-4 w-4" />
-              Sign In with Google
-            </Button>
-          )}
-        </div>
       </header>
       <main className="flex-1 flex flex-col min-h-0">
         <div className="p-4 border-b">
@@ -315,7 +225,7 @@ export default function ChatInterface() {
               size="icon"
               variant="ghost"
               onClick={() => fileInputRef.current?.click()}
-              disabled={isLoading || !user}
+              disabled={isLoading}
               className="h-10 w-10 shrink-0"
               aria-label="Attach image"
             >
@@ -325,7 +235,7 @@ export default function ChatInterface() {
               ref={inputRef}
               value={input}
               onChange={handleInputChange}
-              placeholder={user ? `Ask about ${topic}...` : "Login to start chatting..."}
+              placeholder={`Ask about ${topic}...`}
               className="flex-1 resize-none max-h-48"
               rows={1}
               onKeyDown={(e) => {
@@ -334,13 +244,13 @@ export default function ChatInterface() {
                   handleSendMessage(e);
                 }
               }}
-              disabled={isLoading || !user}
+              disabled={isLoading}
               aria-label="Chat input"
             />
             <Button
               type="submit"
               size="icon"
-              disabled={isLoading || !input.trim() || !user}
+              disabled={isLoading || !input.trim()}
               className="h-10 w-10 shrink-0"
               aria-label="Send message"
             >
