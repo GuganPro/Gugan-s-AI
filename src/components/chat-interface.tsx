@@ -6,7 +6,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Bot,
   Briefcase,
   Code2,
   GraduationCap,
@@ -27,6 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 // Firebase imports
 import { storage } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { BotIcon } from './bot-icon';
 
 type SupportTopic = 'tech' | 'career' | 'college' | 'personal growth' | 'explain';
 type Theme = 'light' | 'dark';
@@ -193,7 +193,7 @@ export default function ChatInterface() {
     <div className="flex flex-col h-screen w-full max-w-4xl mx-auto bg-card shadow-2xl rounded-lg">
       <header className="flex items-center justify-between p-4 border-b shrink-0">
         <div className="flex items-center gap-3">
-          <Bot className="w-8 h-8 text-primary" />
+          <BotIcon className="w-8 h-8 text-primary" />
           <h1 className="text-xl font-bold font-headline">Gugan's AI 💖</h1>
         </div>
         <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme">

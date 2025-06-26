@@ -2,9 +2,10 @@
 
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Bot, User, Loader2 } from 'lucide-react';
+import { User, Loader2 } from 'lucide-react';
 import { type Message } from '@/lib/types';
 import Image from 'next/image';
+import { BotIcon } from './bot-icon';
 
 interface ChatMessageProps {
   message: Message;
@@ -18,7 +19,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
       <div className="flex items-end gap-2 animate-in fade-in">
         <Avatar className="h-8 w-8">
           <AvatarFallback className="bg-muted">
-            <Bot className="h-5 w-5" />
+            <BotIcon className="h-5 w-5" />
           </AvatarFallback>
         </Avatar>
         <div className="rounded-lg p-3 bg-muted text-muted-foreground flex items-center gap-2">
@@ -49,7 +50,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
       {isAssistant && (
         <Avatar className="h-8 w-8 shrink-0">
           <AvatarFallback className="bg-muted text-muted-foreground">
-            <Bot className="h-5 w-5" />
+            <BotIcon className="h-5 w-5" />
           </AvatarFallback>
         </Avatar>
       )}
