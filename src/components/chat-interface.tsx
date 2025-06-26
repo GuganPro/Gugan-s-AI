@@ -12,12 +12,33 @@ import {
   GraduationCap,
   Heart,
   SendHorizontal,
+  Paperclip,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
 import { provideTechGuidance } from '@/ai/flows/provide-tech-guidance';
 import { offerPersonalSupport } from '@/ai/flows/offer-personal-support';
 import { type Message } from '@/lib/types';
 import { ChatMessage } from '@/components/chat-message';
 import { useToast } from '@/hooks/use-toast';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+// Firebase imports
+import { auth, storage } from '@/lib/firebase';
+import {
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signInWithPopup,
+  signOut,
+  type User,
+} from 'firebase/auth';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 type SupportTopic = 'tech' | 'career' | 'college' | 'personal growth';
 
@@ -35,8 +56,46 @@ export default function ChatInterface() {
   const [input, setInput] = useState('');
   const [topic, setTopic] = useState<SupportTopic>('tech');
   const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      toast({ title: 'Super!', description: 'Ulla vandhutinga, macha!' });
+    } catch (error) {
+      console.error('Login failed:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Aiyayo! Login aagala.',
+        description: 'Ennamo thappu nadandhurukku. Again try pannu.',
+      });
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      toast({ title: 'Tata, bye bye!', description: 'See you again, macha!' });
+    } catch (error) {
+      console.error('Logout failed:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Oh no! Logout aagala.',
+        description: 'Problem irukku, konjam neram kalichi try pannu.',
+      });
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -52,16 +111,74 @@ export default function ChatInterface() {
 
   const handleInputChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
-    // Auto-resize textarea, not essential for core logic but good UX
+    // Auto-resize textarea
     const textarea = e.target;
     textarea.style.height = 'auto';
     const scrollHeight = textarea.scrollHeight;
     textarea.style.height = `${scrollHeight}px`;
   };
+  
+  const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) {
+      return;
+    }
+    const file = e.target.files[0];
+    if (!user) {
+      toast({ variant: "destructive", title: "Macha, first login pannu!" });
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      toast({ variant: "destructive", title: "Dei, image mattum anupu da!" });
+      return;
+    }
+
+    setIsLoading(true);
+    setMessages((prev) => [
+      ...prev,
+      { id: 'uploading', role: 'assistant', content: 'Uploading image...', createdAt: new Date() },
+    ]);
+
+    try {
+      const storageRef = ref(storage, `uploads/${user.uid}/${Date.now()}-${file.name}`);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+
+      const imageMessage: Message = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: `Uploaded: ${file.name}`,
+        imageUrl: downloadURL,
+        createdAt: new Date(),
+      };
+      setMessages((prev) => [...prev.filter(m => m.id !== 'uploading'), imageMessage]);
+      toast({ title: "Semma!", description: "Image anupiyachu, macha!" });
+    } catch (error) {
+      console.error("Image upload failed:", error);
+      setMessages((prev) => prev.filter(m => m.id !== 'uploading'));
+      toast({
+        variant: "destructive",
+        title: "Aiyayo, image pogala!",
+        description: "Upload fail aagiduchu. Again try pannu.",
+      });
+    } finally {
+      setIsLoading(false);
+      if(fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
 
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
+    
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Login Pannu Macha!",
+        description: "Message anupa munnadi, login pannu da.",
+      });
+      return;
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -73,12 +190,10 @@ export default function ChatInterface() {
     setInput('');
     setIsLoading(true);
 
-    // Reset textarea height
     if (inputRef.current) {
         inputRef.current.style.height = 'auto';
     }
     
-    // Add typing indicator
     setMessages((prev) => [
       ...prev,
       { id: 'typing', role: 'assistant', content: '...', createdAt: new Date() },
@@ -99,7 +214,7 @@ export default function ChatInterface() {
         content: responseContent,
         createdAt: new Date(),
       };
-      setMessages((prev) => [...prev.slice(0, -1), assistantResponse]);
+      setMessages((prev) => [...prev.filter(m => m.id !== 'typing'), assistantResponse]);
     } catch (error) {
       console.error('AI call failed:', error);
       const errorResponse: Message = {
@@ -109,7 +224,7 @@ export default function ChatInterface() {
           'Macha, ennala ippo connect panna mudila. Network issue polirukku. Konjam neram kalichi try pannu da.',
         createdAt: new Date(),
       };
-      setMessages((prev) => [...prev.slice(0, -1), errorResponse]);
+      setMessages((prev) => [...prev.filter(m => m.id !== 'typing'), errorResponse]);
       toast({
         variant: "destructive",
         title: "Oh no! Something went wrong.",
@@ -127,6 +242,31 @@ export default function ChatInterface() {
         <div className="flex items-center gap-3">
           <Bot className="w-8 h-8 text-primary" />
           <h1 className="text-xl font-bold font-headline">Gugan's AI Macha</h1>
+        </div>
+        <div>
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? 'User'} />
+                    <AvatarFallback>{user.displayName?.charAt(0) ?? 'U'}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button onClick={handleLogin}>
+              <LogIn className="mr-2 h-4 w-4" />
+              Sign In with Google
+            </Button>
+          )}
         </div>
       </header>
       <main className="flex-1 flex flex-col min-h-0">
@@ -161,11 +301,23 @@ export default function ChatInterface() {
             onSubmit={handleSendMessage}
             className="flex items-end gap-2"
           >
+            <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading || !user}
+              className="h-10 w-10 shrink-0"
+              aria-label="Attach image"
+            >
+              <Paperclip className="h-5 w-5" />
+            </Button>
             <Textarea
               ref={inputRef}
               value={input}
               onChange={handleInputChange}
-              placeholder={`Ask about ${topic}...`}
+              placeholder={user ? `Ask about ${topic}...` : "Login to start chatting..."}
               className="flex-1 resize-none max-h-48"
               rows={1}
               onKeyDown={(e) => {
@@ -174,13 +326,13 @@ export default function ChatInterface() {
                   handleSendMessage(e);
                 }
               }}
-              disabled={isLoading}
+              disabled={isLoading || !user}
               aria-label="Chat input"
             />
             <Button
               type="submit"
               size="icon"
-              disabled={isLoading || !input.trim()}
+              disabled={isLoading || !input.trim() || !user}
               className="h-10 w-10 shrink-0"
               aria-label="Send message"
             >

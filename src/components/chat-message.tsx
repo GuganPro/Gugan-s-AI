@@ -2,8 +2,9 @@
 
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Bot, User } from 'lucide-react';
+import { Bot, User, Loader2 } from 'lucide-react';
 import { type Message } from '@/lib/types';
+import Image from 'next/image';
 
 interface ChatMessageProps {
   message: Message;
@@ -12,7 +13,7 @@ interface ChatMessageProps {
 export function ChatMessage({ message }: ChatMessageProps) {
   const isAssistant = message.role === 'assistant';
 
-  if (message.id === 'typing') {
+  if (message.id === 'typing' || message.id === 'uploading') {
     return (
       <div className="flex items-end gap-2 animate-in fade-in">
         <Avatar className="h-8 w-8">
@@ -20,12 +21,19 @@ export function ChatMessage({ message }: ChatMessageProps) {
             <Bot className="h-5 w-5" />
           </AvatarFallback>
         </Avatar>
-        <div className="rounded-lg p-3 bg-muted text-muted-foreground">
-          <div className="flex gap-1.5 items-center justify-center h-5">
-            <span className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]"></span>
-            <span className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]"></span>
-            <span className="h-2 w-2 rounded-full bg-primary animate-bounce"></span>
-          </div>
+        <div className="rounded-lg p-3 bg-muted text-muted-foreground flex items-center gap-2">
+          {message.id === 'typing' ? (
+            <div className="flex gap-1.5 items-center justify-center h-5">
+              <span className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]"></span>
+              <span className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]"></span>
+              <span className="h-2 w-2 rounded-full bg-primary animate-bounce"></span>
+            </div>
+          ) : (
+             <>
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <span>Uploading...</span>
+            </>
+          )}
         </div>
       </div>
     );
@@ -53,6 +61,17 @@ export function ChatMessage({ message }: ChatMessageProps) {
             : 'bg-primary text-primary-foreground rounded-tr-none'
         )}
       >
+        {message.imageUrl && (
+          <div className="mb-2">
+            <Image
+              src={message.imageUrl}
+              alt="Uploaded image"
+              width={300}
+              height={300}
+              className="rounded-md object-cover"
+            />
+          </div>
+        )}
         <p className="whitespace-pre-wrap">{message.content}</p>
       </div>
       {!isAssistant && (
